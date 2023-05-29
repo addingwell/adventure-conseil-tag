@@ -1,3 +1,5 @@
 homepage: "https://www.addingwell.com"
 documentation: "https://github.com/addingwell/adventure-conseil-tag/blob/master/README.md"
 versions:
+  - sha: 1020490366b93dbe01a18da75625832ca7063f46
+    changeNotes: Initial release.
