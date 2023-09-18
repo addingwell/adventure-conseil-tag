@@ -72,6 +72,33 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "GROUP",
+    "name": "customParameters",
+    "displayName": "Custom Parameters",
+    "groupStyle": "ZIPPY_CLOSED",
+    "subParams": [
+      {
+        "type": "SIMPLE_TABLE",
+        "name": "customParametersTable",
+        "displayName": "",
+        "simpleTableColumns": [
+          {
+            "defaultValue": "",
+            "displayName": "ref",
+            "name": "ref",
+            "type": "TEXT"
+          },
+          {
+            "defaultValue": "",
+            "displayName": "value",
+            "name": "value",
+            "type": "TEXT"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "GROUP",
     "name": "advancedParameters",
     "displayName": "Advanced Parameters",
     "groupStyle": "ZIPPY_CLOSED",
@@ -121,6 +148,7 @@ const getAllEventData = require('getAllEventData');
 const setCookie = require('setCookie');
 const getCookieValues = require('getCookieValues');
 const parseUrl = require('parseUrl');
+const encodeUriComponent = require('encodeUriComponent');
 
 const eventModel = getAllEventData();
 const API_ENDPOINT = 'https://pmv.adventures2s.com/';
@@ -128,6 +156,11 @@ const API_ENDPOINT = 'https://pmv.adventures2s.com/';
 const PAGE_VIEW_EVENT = data.pageViewEvent || 'page_view';
 const PURCHASE_EVENT = data.purchaseEvent || 'purchase';
 const LEAD_EVENT = data.leadEvent || 'generate_lead';
+
+function safeEncodeUriComponent(value) {
+  value = value || '';
+  return encodeUriComponent(value);
+}
 
 switch (eventModel.event_name) {
   case PAGE_VIEW_EVENT:
@@ -158,33 +191,50 @@ switch (eventModel.event_name) {
     const acCookie = getCookieValues('ac_pba');
 
     if (acCookie && acCookie[0]) {
-        let urlParams = [
-          'key=' + data.key,
-          'transaction=' + (eventModel.event_name === PURCHASE_EVENT ? 'ca' : 'lead'),
-          'pba=' + acCookie[0],
-          'amount=' + (data.purchaseAmount ? data.purchaseAmount : ((eventModel.value - (eventModel.tax || 0)) - (eventModel.shipping || 0)))
-        ].join('&');
-
-        if (data.clearCookie) {
-          setCookie('ac_pba', '', {
-            domain: data.domain,
-            path: '/',
-            secure: true,
-            httpOnly: false,
-            'max-age': 10
-          }, false);
+      let urlParams = [
+        'key=' + data.key,
+        'transaction=' + (eventModel.event_name === PURCHASE_EVENT ? 'ca' : 'lead'),
+        'pba=' + acCookie[0],
+        'amount=' + (data.purchaseAmount ? data.purchaseAmount : ((eventModel.value - (eventModel.tax || 0)) - (eventModel.shipping || 0)))
+      ];
+      
+      const includedRef = [];
+      for (let key in data.customParametersTable) {
+        const row = data.customParametersTable[key];
+        if (includedRef.indexOf(row.ref) !== -1) {
+          continue;
         }
 
-        const url = API_ENDPOINT + '?' + urlParams;
-        sendHttpRequest(url, (statusCode, headers, body) => {
-          if (statusCode >= 200 && statusCode < 300) {
-            data.gtmOnSuccess();
-          } else {
-            data.gtmOnFailure();
-          }
-        }, requestHeaders, '');
+        if (row.value === undefined) {
+          continue;
+        }
+
+        includedRef.push(row.ref);
+        urlParams.push(row.ref + '=' + safeEncodeUriComponent(row.value));
+      }
+
+      if (data.clearCookie) {
+        setCookie('ac_pba', '', {
+          domain: data.domain,
+          path: '/',
+          secure: true,
+          httpOnly: false,
+          'max-age': 10
+        }, false);
+      }
+
+      const urlParamsString = urlParams.filter((v) => v).join('&');
+      
+      const url = API_ENDPOINT + '?' + urlParamsString;
+      sendHttpRequest(url, (statusCode, headers, body) => {
+        if (statusCode >= 200 && statusCode < 300) {
+          data.gtmOnSuccess();
+        } else {
+          data.gtmOnFailure();
+        }
+      }, requestHeaders, '');
     } else {
-        data.gtmOnSuccess();
+      data.gtmOnSuccess();
     }
     break;
   default:
