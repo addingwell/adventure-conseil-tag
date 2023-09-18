@@ -3,3 +3,5 @@ documentation: "https://github.com/addingwell/adventure-conseil-tag/blob/master/
 versions:
   - sha: 1020490366b93dbe01a18da75625832ca7063f46
     changeNotes: Initial release.
+  - sha: 196f813a83e4121a713f5d5c5506706e7185dcee
+    changeNotes: Ability to add custom parameters
